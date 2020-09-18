@@ -716,6 +716,7 @@ class ReactSortableTree extends Component {
                         treeIndex: index,
                         node: rows[index].node,
                         path: rows[index].path,
+                        nodeList: rows
                       })
               }
               rowRenderer={({ index, style: rowStyle }) =>
@@ -748,6 +749,7 @@ class ReactSortableTree extends Component {
                     treeIndex: index,
                     node: row.node,
                     path: row.path,
+                    nodeList: rows
                   }),
           },
           getPrevRow: () => rows[index - 1] || null,
