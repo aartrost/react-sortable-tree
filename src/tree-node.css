@@ -1,8 +1,8 @@
 .rst__node {
   min-width: 100%;
+  white-space: nowrap;
   position: relative;
   text-align: left;
-  display: flex;
 }
 
 .rst__node.rst__rtl {
@@ -10,7 +10,9 @@
 }
 
 .rst__nodeContent {
-  max-width: calc(100% - 44px);
+  position: absolute;
+  top: 0;
+  bottom: 0;
 }
 
 /* ==========================================================================
@@ -22,7 +24,7 @@
 .rst__absoluteLineBlock {
   height: 100%;
   position: relative;
-  flex-shrink: 0;
+  display: inline-block;
 }
 
 .rst__absoluteLineBlock {

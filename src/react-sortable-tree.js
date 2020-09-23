@@ -5,16 +5,11 @@ import withScrolling, {
 } from 'frontend-collective-react-dnd-scrollzone';
 import isEqual from 'lodash.isequal';
 import PropTypes from 'prop-types';
-import React, { Component, forwardRef } from 'react';
+import React, { Component } from 'react';
 import { DndContext, DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { polyfill } from 'react-lifecycles-compat';
-import {
-  AutoSizer,
-  CellMeasurer,
-  CellMeasurerCache,
-  List,
-} from 'react-virtualized';
+import { AutoSizer, List } from 'react-virtualized';
 import 'react-virtualized/styles.css';
 import NodeRendererDefault from './node-renderer-default';
 import PlaceholderRendererDefault from './placeholder-renderer-default';
@@ -89,13 +84,6 @@ class ReactSortableTree extends Component {
       isVirtualized,
       slideRegionSize,
     } = mergeTheme(props);
-
-    this.isDynamicRowHeight = this.props.isDynamicRowHeight;
-    this.list = null;
-    this.cellMeasureCache = new CellMeasurerCache({
-      fixedWidth: true,
-      minHeight: 34,
-    });
 
     this.dndManager = new DndManager(this);
 
@@ -206,8 +194,8 @@ class ReactSortableTree extends Component {
 
     instanceProps.searchQuery = nextProps.searchQuery;
     instanceProps.searchFocusOffset = nextProps.searchFocusOffset;
-    newState.instanceProps = { ...instanceProps, ...newState.instanceProps };
-
+    newState.instanceProps = {...instanceProps, ...newState.instanceProps };
+ 
     return newState;
   }
 
@@ -369,7 +357,6 @@ class ReactSortableTree extends Component {
   }
 
   startDrag({ path }) {
-    this.list.container.classList.add('rst__dragged');
     this.setState(prevState => {
       const {
         treeData: draggingTreeData,
@@ -492,19 +479,6 @@ class ReactSortableTree extends Component {
         prevTreeIndex: treeIndex,
       });
     }
-
-    if (this.isDynamicRowHeight) {
-      this.recomputeRowHeights();
-    }
-
-    this.list.container.classList.remove('rst__dragged');
-  }
-
-  recomputeRowHeights() {
-    if (this.list) {
-      this.cellMeasureCache.clearAll();
-      this.list.wrappedInstance.current.recomputeRowHeights();
-    }
   }
 
   drop(dropResult) {
@@ -568,11 +542,9 @@ class ReactSortableTree extends Component {
 
   renderRow(
     row,
-    rowRenderer,
-    { listIndex, getPrevRow, matchKeys, swapFrom, swapDepth, swapLength }
+    { listIndex, style, getPrevRow, matchKeys, swapFrom, swapDepth, swapLength }
   ) {
     const { node, parentNode, path, lowerSiblingCounts, treeIndex } = row;
-    const { index, parent, key, style } = rowRenderer;
 
     const {
       canDrag,
@@ -611,10 +583,10 @@ class ReactSortableTree extends Component {
       rowDirection,
     };
 
-    const Renderers = (
+    return (
       <TreeNodeRenderer
-        key={nodeKey}
         style={style}
+        key={nodeKey}
         listIndex={listIndex}
         getPrevRow={getPrevRow}
         lowerSiblingCounts={lowerSiblingCounts}
@@ -633,24 +605,6 @@ class ReactSortableTree extends Component {
           {...nodeProps}
         />
       </TreeNodeRenderer>
-    );
-
-    return (
-      <>
-        {this.isDynamicRowHeight ? (
-          <CellMeasurer
-            key={key}
-            cache={this.cellMeasureCache}
-            parent={parent}
-            columnIndex={0}
-            rowIndex={index}
-          >
-            {Renderers}
-          </CellMeasurer>
-        ) : (
-          <>{Renderers}</>
-        )}
-      </>
     );
   }
 
@@ -730,23 +684,6 @@ class ReactSortableTree extends Component {
     } else if (isVirtualized) {
       containerStyle = { height: '100%', ...containerStyle };
 
-      let listClassName = 'rst__virtualScrollOverride';
-      let listRowHeight =
-        typeof rowHeight !== 'function'
-          ? rowHeight
-          : ({ index }) =>
-              rowHeight({
-                index,
-                treeIndex: index,
-                node: rows[index].node,
-                path: rows[index].path,
-              });
-
-      if (this.isDynamicRowHeight) {
-        listRowHeight = this.cellMeasureCache.rowHeight;
-        listClassName += ' rst__dynamicRowHeight';
-      }
-
       const ScrollZoneVirtualList = this.scrollZoneVirtualList;
       // Render list with react-virtualized
       list = (
@@ -759,38 +696,40 @@ class ReactSortableTree extends Component {
               horizontalStrength={this.hStrength}
               speed={30}
               scrollToAlignment="start"
-              className={listClassName}
+              className="rst__virtualScrollOverride"
               width={width}
-              height={height}
               onScroll={({ scrollTop }) => {
                 this.scrollTop = scrollTop;
               }}
+              height={height}
               style={innerStyle}
               rowCount={rows.length}
               estimatedRowSize={
                 typeof rowHeight !== 'function' ? rowHeight : undefined
               }
-              deferredMeasurementCache={
-                this.isDynamicRowHeight ? this.cellMeasureCache : undefined
+              rowHeight={
+                typeof rowHeight !== 'function'
+                  ? rowHeight
+                  : ({ index }) =>
+                      rowHeight({
+                        index,
+                        treeIndex: index,
+                        node: rows[index].node,
+                        path: rows[index].path,
+                        nodeList: rows
+                      })
               }
-              rowHeight={listRowHeight}
-              rowRenderer={({ index, parent, key, style }) =>
-                this.renderRow(
-                  rows[index],
-                  { index, parent, key, style },
-                  {
-                    listIndex: index,
-                    getPrevRow: () => rows[index - 1] || null,
-                    matchKeys,
-                    swapFrom,
-                    swapDepth: draggedDepth,
-                    swapLength,
-                  }
-                )
+              rowRenderer={({ index, style: rowStyle }) =>
+                this.renderRow(rows[index], {
+                  listIndex: index,
+                  style: rowStyle,
+                  getPrevRow: () => rows[index - 1] || null,
+                  matchKeys,
+                  swapFrom,
+                  swapDepth: draggedDepth,
+                  swapLength,
+                })
               }
-              ref={list => {
-                this.list = list;
-              }}
               {...reactVirtualizedListProps}
             />
           )}
@@ -859,9 +798,6 @@ ReactSortableTree.propTypes = {
   // Either a fixed row height (number) or a function that returns the
   // height of a row given its index: `({ index: number }): number`
   rowHeight: PropTypes.oneOfType([PropTypes.number, PropTypes.func]),
-
-  // Set value whether should be row height calculated dynamically or not
-  isDynamicRowHeight: PropTypes.bool,
 
   // Size in px of the region near the edges that initiates scrolling on dragover
   slideRegionSize: PropTypes.number,
@@ -988,7 +924,6 @@ ReactSortableTree.defaultProps = {
   placeholderRenderer: null,
   reactVirtualizedListProps: {},
   rowHeight: null,
-  isDynamicRowHeight: false,
   scaffoldBlockPxWidth: null,
   searchFinishCallback: null,
   searchFocusOffset: null,
@@ -1005,27 +940,21 @@ ReactSortableTree.defaultProps = {
 
 polyfill(ReactSortableTree);
 
-const SortableTreeWithoutDndContext = forwardRef((props, ref) => {
-  return (
-    <DndContext.Consumer>
-      {({ dragDropManager }) =>
-        dragDropManager === undefined ? null : (
-          <ReactSortableTree
-            {...props}
-            ref={ref}
-            dragDropManager={dragDropManager}
-          />
-        )
-      }
-    </DndContext.Consumer>
-  );
-});
+const SortableTreeWithoutDndContext = props => (
+  <DndContext.Consumer>
+    {({ dragDropManager }) =>
+      dragDropManager === undefined ? null : (
+        <ReactSortableTree {...props} dragDropManager={dragDropManager} />
+      )
+    }
+  </DndContext.Consumer>
+);
 
-const SortableTree = forwardRef((props, ref) => (
+const SortableTree = props => (
   <DndProvider backend={HTML5Backend}>
-    <SortableTreeWithoutDndContext {...props} ref={ref} />
+    <SortableTreeWithoutDndContext {...props} />
   </DndProvider>
-));
+);
 
 // Export the tree component without the react-dnd DragDropContext,
 // for when component is used with other components using react-dnd.
